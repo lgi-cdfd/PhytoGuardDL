@@ -1,0 +1,23 @@
+# Keep unpublished manuscript docs, figures, tables, training scripts, and large binaries local / Zenodo-only
+docs/
+figures/
+tables/
+scripts/
+data/
+models/
+webserver/jobs/
+webserver/job_store/
+webserver/contact_messages/
+webserver/email_results/
+webserver/__pycache__/
+webserver/logs/
+*.pyc
+*.log
+*.soft.gz
+*.faa
+*.npy
+*.npz
+*.pkl
+*.pt
+*.docx
+*.pdf
