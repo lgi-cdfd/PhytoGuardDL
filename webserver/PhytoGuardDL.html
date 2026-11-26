@@ -2305,7 +2305,6 @@ function _svgFigHeader(title, r){
     <text x="60" y="50" font-size="23" font-weight="700" fill="#0a3d2e" font-family="DM Sans, sans-serif">${_escXml(title)}</text>
     <text x="60" y="76" font-size="13.5" fill="#5d6d7e" font-family="DM Sans, sans-serif">${_escXml(sub)}</text>
     <line x1="60" y1="92" x2="1140" y2="92" stroke="#ddd8cf" stroke-width="1.5"/>
-    <text x="60" y="776" font-size="11.5" fill="#8a8378" font-family="DM Sans, sans-serif">PhytoGuardDL · Laboratory of Genome Informatics, BRIC-CDFD (Interactive Vector &amp; 600 DPI Publication Export)</text>
   `;
 }
 
@@ -2373,7 +2372,37 @@ function renderFigure1Svg(r){
     ['Hormone Pathway:', p2.phytohormone_pathway || 'N/A'],
   ];
   const boxY = ay + 8;
-  const metaHtml = metaRows.map(([k, v]) => `<div style="display:flex;gap:8px;margin-bottom:9px;font-size:12.5px;line-height:1.35;"><span style="min-width:124px;font-weight:700;color:#0a3d2e;">${_escXml(k)}</span><span style="color:#1c1b18;">${_escXml(v)}</span></div>`).join('');
+  const _wrapSvg = (txt, maxCh) => {
+    const words = String(txt || 'N/A').split(/\s+/);
+    const lines = [];
+    let cur = '';
+    for(const w of words){
+      const next = cur ? cur + ' ' + w : w;
+      if(next.length > maxCh && cur){
+        lines.push(cur);
+        cur = w;
+        if(lines.length === 1){
+          const rest = words.slice(words.indexOf(w)).join(' ');
+          lines.push(rest.length > maxCh ? rest.slice(0, maxCh - 3) + '...' : rest);
+          return lines;
+        }
+      } else {
+        cur = next;
+      }
+    }
+    if(cur) lines.push(cur);
+    return lines.length ? lines : ['N/A'];
+  };
+  let metaY = boxY + 32;
+  const metaSvg = metaRows.map(([k, v]) => {
+    const lines = _wrapSvg(v, 38);
+    const rowY = metaY;
+    metaY += lines.length * 18 + 20;
+    const valTexts = lines.map((ln, idx) =>
+      `<text x="${rx + 144}" y="${rowY + idx * 18}" font-size="12.5" fill="#1c1b18" font-family="DM Sans, sans-serif">${_escXml(ln)}</text>`
+    ).join('');
+    return `<text x="${rx + 16}" y="${rowY}" font-size="12.5" font-weight="700" fill="#0a3d2e" font-family="DM Sans, sans-serif">${_escXml(k)}</text>${valTexts}`;
+  }).join('');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" style="width:100%;height:auto;display:block;font-family:DM Sans, sans-serif;">
     ${_svgFigHeader('Figure 1: Multi-Model DL & ML Stacking Consensus and Biological Axis', r)}
@@ -2384,9 +2413,7 @@ function renderFigure1Svg(r){
     <text x="${rx}" y="134" font-size="16" font-weight="700" fill="#1c1b18">B. Phase II Stress &amp; Defense Biology Decoding</text>
     ${axisSvg}
     <rect x="${rx}" y="${boxY}" width="${rw}" height="260" rx="8" fill="#e8f5ee" stroke="#7dcea0" stroke-width="1.5"/>
-    <foreignObject x="${rx + 14}" y="${boxY + 14}" width="${rw - 28}" height="236">
-      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:DM Sans, sans-serif;">${metaHtml}</div>
-    </foreignObject>
+    ${metaSvg}
   </svg>`;
 }
 
@@ -2719,8 +2746,6 @@ function _wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines){
     curY += usedLines * 17 + 20;
   });
 
-  ctx.fillStyle = '#8a8378'; ctx.font = '12px "DM Sans", sans-serif';
-  ctx.fillText('PhytoGuardDL · Laboratory of Genome Informatics, BRIC-CDFD (600 DPI Publication Export)', 60, h - 28);
 }
 
 function drawFigure2(ctx, w, h, r){
@@ -2788,8 +2813,6 @@ function drawFigure2(ctx, w, h, r){
       ctx.fillText(`${d.end_res - d.start_res + 1} aa`, 920, ry + 24);
     });
   }
-  ctx.fillStyle = '#8a8378'; ctx.font = '12px "DM Sans", sans-serif';
-  ctx.fillText('PhytoGuardDL · Laboratory of Genome Informatics, BRIC-CDFD (600 DPI Publication Export)', 60, h - 28);
 }
 
 function drawFigure3(ctx, w, h, r){
@@ -2851,8 +2874,6 @@ function drawFigure3(ctx, w, h, r){
   const p2 = r.phase2 || {};
   ctx.fillStyle = '#1c1b18'; ctx.font = '13px "DM Sans", sans-serif';
   ctx.fillText(`GRAVY Index: ${r.properties?.gravy ?? 'N/A'}  |  Signal Peptide: ${p2.signal_peptide || 'None'}  |  TM Helices: ${p2.tm_helices || '0 TM'}  |  Localization: ${p2.subcellular_localization || 'N/A'}`, 60, h - 62);
-  ctx.fillStyle = '#8a8378'; ctx.font = '12px "DM Sans", sans-serif';
-  ctx.fillText('PhytoGuardDL · Laboratory of Genome Informatics, BRIC-CDFD (600 DPI Publication Export)', 60, h - 28);
 }
 
 function drawFigure4(ctx, w, h, r){
@@ -2919,10 +2940,8 @@ function drawFigure4(ctx, w, h, r){
   ctx.fillStyle = '#0a3d2e'; ctx.font = 'bold 15px "DM Sans", sans-serif';
   ctx.fillText(`Validation Priority: ${tier}`, 80, 690);
   ctx.fillStyle = '#4a4740'; ctx.font = '12.5px "DM Sans", sans-serif';
-  ctx.fillText('Note for Plant Breeders & Geneticists: Retrieve coding DNA (CDS) via Ensembl Plants / TAIR before designing CRISPR gRNAs or qRT-PCR primers.', 80, 716);
+  ctx.fillText('Note for Plant Breeders & Geneticists: Retrieve coding DNA (CDS) via NCBI Gene / UniProtKB before designing CRISPR gRNAs or qRT-PCR primers.', 80, 716);
 
-  ctx.fillStyle = '#8a8378'; ctx.font = '12px "DM Sans", sans-serif';
-  ctx.fillText('PhytoGuardDL · Laboratory of Genome Informatics, BRIC-CDFD (600 DPI Publication Export)', 60, h - 28);
 }
 
 function downloadActiveFigure(fmt){
@@ -2936,6 +2955,8 @@ function downloadActiveFigure(fmt){
 
   const ctx = exportCanvas.getContext('2d');
   ctx.scale(dpiScale, dpiScale);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height);
 
   const r = _currentFigData || {};
   if(_activeFigId === 'fig1') drawFigure1(ctx, sourceCanvas.width, sourceCanvas.height, r);
