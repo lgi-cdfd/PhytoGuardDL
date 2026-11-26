@@ -1544,9 +1544,6 @@ function renderResult(r, area){
   const alphafoldUrl = isNamed
     ? `https://alphafold.ebi.ac.uk/search/text/${encodeURIComponent(token)}`
     : `https://alphafold.ebi.ac.uk/`;
-  const ensemblUrl = isNamed
-    ? `https://plants.ensembl.org/Search/Results?q=${encodeURIComponent(token)}`
-    : `https://plants.ensembl.org/`;
   const ncbiGeneUrl = isNamed
     ? `https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(token + ' AND Viridiplantae[Organism]')}`
     : `https://www.ncbi.nlm.nih.gov/gene/`;
@@ -1714,7 +1711,6 @@ function renderResult(r, area){
             <button onclick="openInterProWithCopy(this)" class="dl-btn" style="font-weight:600;">InterProScan (Copies Sequence) ↗</button>
             <a href="${uniprotUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">UniProtKB Viridiplantae ↗</a>
             <a href="${alphafoldUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">AlphaFold 3D Search ↗</a>
-            <a href="${ensemblUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">Ensembl Plants Search ↗</a>
             <a href="${plantReactomeUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">PlantReactome Pathways ↗</a>
             <a href="${stringDbUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">STRING PPI Network ↗</a>
             <a href="${ncbiGeneUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">NCBI Gene (Plants) ↗</a>
