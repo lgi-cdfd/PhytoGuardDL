@@ -1315,15 +1315,60 @@ function submitNcbiBlast(){
   document.body.removeChild(form);
 }
 
-function openInterProWithCopy(btn){
+function submitNcbiCdd(){
   const r = window._singleResult;
-  if(r && r.sequence && navigator.clipboard){
-    navigator.clipboard.writeText(`>${r.name || 'query'}\n${r.sequence}`).catch(()=>{});
+  if(!r || !r.sequence) return;
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = 'https://www.ncbi.nlm.nih.gov/Structure/cdd/wrpsb.cgi';
+  form.target = '_blank';
+  const fields = {
+    SEQUENCE: `>${r.name || 'query'}\n${r.sequence}`,
+    db: 'cdd',
+    smode: 'auto'
+  };
+  Object.entries(fields).forEach(([k, v]) => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden';
+    inp.name = k;
+    inp.value = v;
+    form.appendChild(inp);
+  });
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+}
+
+async function openAlphaFoldDirect(token, btn){
+  if(!token || token === 'Sequence Query'){
+    window.open('https://alphafold.ebi.ac.uk/', '_blank', 'noopener');
+    return;
   }
   const orig = btn.textContent;
-  btn.textContent = 'Sequence Copied — Opening InterProScan...';
-  setTimeout(()=>{ btn.textContent = orig; }, 2200);
-  window.open('https://www.ebi.ac.uk/interpro/search/sequence/', '_blank', 'noopener');
+  btn.textContent = 'Resolving AlphaFold 3D...';
+  try{
+    let acc = null;
+    for(const qStr of [`(${token}) AND (taxonomy_id:33090) AND (reviewed:true)`, `(${token}) AND (taxonomy_id:33090)`]){
+      const u = `https://rest.uniprot.org/uniprotkb/search?query=${encodeURIComponent(qStr)}&format=json&size=1&fields=accession`;
+      const resp = await fetch(u, {signal: AbortSignal.timeout(6000)});
+      if(resp.ok){
+        const data = await resp.json();
+        if(data.results && data.results.length){
+          acc = data.results[0].primaryAccession;
+          break;
+        }
+      }
+    }
+    if(acc){
+      window.open(`https://alphafold.ebi.ac.uk/entry/${encodeURIComponent(acc)}`, '_blank', 'noopener');
+    } else {
+      window.open(`https://www.uniprot.org/uniprotkb?query=${encodeURIComponent(token + ' AND taxonomy_id:33090')}`, '_blank', 'noopener');
+    }
+  } catch(e){
+    window.open(`https://www.uniprot.org/uniprotkb?query=${encodeURIComponent(token + ' AND taxonomy_id:33090')}`, '_blank', 'noopener');
+  } finally {
+    btn.textContent = orig;
+  }
 }
 
 function copyQuerySequence(btn){
@@ -1537,25 +1582,17 @@ function renderResult(r, area){
   const token = agiMatch ? agiMatch[0] : rawName.split(/[_\s|:-]+/)[0];
   const isNamed = token && token.toLowerCase() !== 'query' && token.length >= 3;
   const searchGene = isNamed ? token : 'Sequence Query';
-  // Verified HTTP 200 External Genomics Links Only
+  // Verified HTTP 200 External Genomics Links Only (zero login walls, zero broken searches)
   const uniprotUrl = isNamed
     ? `https://www.uniprot.org/uniprotkb?query=${encodeURIComponent(token + ' AND taxonomy_id:33090')}`
     : `https://www.uniprot.org/uniprotkb`;
-  const alphafoldUrl = isNamed
-    ? `https://alphafold.ebi.ac.uk/search/text/${encodeURIComponent(token)}`
-    : `https://alphafold.ebi.ac.uk/`;
   const ncbiGeneUrl = isNamed
     ? `https://www.ncbi.nlm.nih.gov/gene/?term=${encodeURIComponent(token + ' AND Viridiplantae[Organism]')}`
     : `https://www.ncbi.nlm.nih.gov/gene/`;
-  const plantReactomeUrl = isNamed
-    ? `https://plantreactome.gramene.org/content/query?q=${encodeURIComponent(token)}`
-    : `https://plantreactome.gramene.org/`;
   const stringDbUrl = isNamed
     ? `https://string-db.org/cgi/network?identifiers=${encodeURIComponent(token)}&species=3702`
     : `https://string-db.org/`;
-  const tairLinkHtml = agiMatch
-    ? `<a href="https://www.arabidopsis.org/servlets/TairObject?type=locus&name=${encodeURIComponent(agiMatch[0])}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">TAIR Locus (${agiMatch[0]}) ↗</a>`
-    : '';
+  const safeToken = (isNamed ? token : '').replace(/'/g, '');
 
   // Clickable GO (QuickGO), KEGG (kegg.jp/pathway/), and Pfam (InterPro) Ontology Chips — All Verified HTTP 200
   const goList = (p2 && p2.go_terms) ? p2.go_terms : [];
@@ -1688,15 +1725,24 @@ function renderResult(r, area){
 
       <!-- TAB 3: BIOPHYSICS & EXTERNAL PLANT GENOMICS CROSS-LINKS -->
       <div id="${uid}-tab-biophys" style="display:none;padding:20px 22px;">
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:18px;">
-          <div class="prop-cell"><div class="pn">Molecular Weight</div><div class="pv">${props.mw_kda} kDa</div></div>
-          <div class="prop-cell"><div class="pn">Theoretical pI</div><div class="pv">${props.pi_est ?? 'N/A'}</div></div>
-          <div class="prop-cell"><div class="pn">GRAVY Index</div><div class="pv">${props.gravy}</div></div>
-          <div class="prop-cell"><div class="pn">Net Charge (pH 7)</div><div class="pv">${props.charge_ph7}</div></div>
-          <div class="prop-cell"><div class="pn">Aliphatic Index</div><div class="pv">${props.aliphatic_index ?? 'N/A'}</div></div>
-          <div class="prop-cell"><div class="pn">Aromaticity</div><div class="pv">${props.aromaticity}</div></div>
-          <div class="prop-cell"><div class="pn">Cysteine Content</div><div class="pv">${props.cys_pct ?? 'N/A'}%</div></div>
-          <div class="prop-cell"><div class="pn">Sequence Length</div><div class="pv">${r.length} aa</div></div>
+        <div style="font-size:.76rem;font-weight:700;color:#0a3d2e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Physicochemical &amp; Biophysical Properties (Hover any card for biological context)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:20px;">
+          ${[
+            ['Molecular Weight', `${props.mw_kda} kDa`, 'Estimated polypeptide molecular mass calculated from full amino acid sequence.'],
+            ['Theoretical pI', `${props.pi_est ?? 'N/A'}`, 'Isoelectric point — pH at which the protein carries zero net electrostatic charge.'],
+            ['GRAVY Index', `${props.gravy}`, 'Grand Average of Hydropathy (Kyte-Doolittle): positive = hydrophobic/membrane; negative = soluble.'],
+            ['Net Charge (pH 7)', `${props.charge_ph7}`, 'Estimated net electrostatic charge at physiological pH 7.0 (K/R/H vs. D/E).'],
+            ['Aliphatic Index', `${props.aliphatic_index ?? 'N/A'}`, 'Relative volume occupied by aliphatic side chains (A, V, I, L); correlates with thermostability.'],
+            ['Aromaticity', `${props.aromaticity}`, 'Relative frequency of aromatic amino acids (Phe, Trp, Tyr).'],
+            ['Cysteine Content', `${props.cys_pct ?? 'N/A'}%`, 'Cysteine abundance; enriched in disulfide-bonded secreted PR/defensin and LRR proteins.'],
+            ['Sequence Length', `${r.length} aa`, 'Total canonical polypeptide length in amino acid residues.'],
+          ].map(([lbl, val, desc]) => {
+            const tip = `<strong>${lbl}: ${val}</strong><br/>${desc}`.replace(/"/g, '&quot;');
+            return `<div style="background:#fafaf7;border:1px solid #ddd8cf;border-left:3.5px solid #0a3d2e;border-radius:9px;padding:12px 15px;cursor:pointer;transition:box-shadow .15s,border-color .15s;" onmousemove="pgShowTip(event, &quot;${tip}&quot;);this.style.boxShadow='0 4px 12px rgba(10,61,46,.10)'" onmouseleave="pgHideTip();this.style.boxShadow='none'">
+              <div style="font-size:.70rem;font-weight:700;color:#7a7570;text-transform:uppercase;letter-spacing:.04em;">${lbl}</div>
+              <div style="font-family:var(--ff-mono);font-size:1.12rem;font-weight:700;color:#0a3d2e;margin-top:5px;">${val}</div>
+            </div>`;
+          }).join('')}
         </div>
 
         <div style="background:#fafaf7;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:18px;">
@@ -1707,14 +1753,12 @@ function renderResult(r, area){
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;">
           <div style="font-size:.76rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Verified Plant Genomics External Validation &amp; Homology Links (Query: ${searchGene})</div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <button onclick="submitNcbiBlast()" class="dl-btn" style="font-weight:600;background:#0a3d2e;color:#fff;border-color:#0a3d2e;">Submit to NCBI BLASTp (POST) ↗</button>
-            <button onclick="openInterProWithCopy(this)" class="dl-btn" style="font-weight:600;">InterProScan (Copies Sequence) ↗</button>
+            <button onclick="submitNcbiBlast()" class="dl-btn" style="font-weight:600;background:#0a3d2e;color:#fff;border-color:#0a3d2e;">Submit to NCBI BLASTp (Direct POST) ↗</button>
+            <button onclick="submitNcbiCdd()" class="dl-btn" style="font-weight:600;background:#1a5276;color:#fff;border-color:#1a5276;">Submit to NCBI CD-Search / Pfam (Direct POST) ↗</button>
+            <button onclick="openAlphaFoldDirect('${safeToken}', this)" class="dl-btn" style="font-weight:600;">AlphaFold 3D Structure (Direct Entry) ↗</button>
             <a href="${uniprotUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">UniProtKB Viridiplantae ↗</a>
-            <a href="${alphafoldUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">AlphaFold 3D Search ↗</a>
-            <a href="${plantReactomeUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">PlantReactome Pathways ↗</a>
             <a href="${stringDbUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">STRING PPI Network ↗</a>
             <a href="${ncbiGeneUrl}" target="_blank" rel="noopener" class="dl-btn" style="text-decoration:none;font-weight:600;">NCBI Gene (Plants) ↗</a>
-            ${tairLinkHtml}
           </div>
         </div>
       </div>
